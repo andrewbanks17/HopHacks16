@@ -1,146 +1,90 @@
-//ONESSIE IS NOT CAPITOL ONE. IT IS MADE BY CAPITAL ONE, BUT CAPITAL ONE API != ONE NESSie.so dont screw that up next time
-//everything done in js is actually done from the phone. the phone recieves data and sends stuff back to the watch
-// Listen for when an AppMessage is received
-//if the watch successfully recieves the message, the phone(js) knows
+//require('dotenv').load();
 
-//MESSAGE_KEY VALUES: "create dictionary to send in this order"
-//balance - 0
+var http       = require('http')
+  , AlexaSkill = require('./AlexaSkill')
+  , CAP_KEY='8718dbc034540cb9f0b1b76d42452753'
+  , MER_KEY='580c2363360f81f104544f26'
+  , APP_ID='amzn1.ask.skill.201c2cb1-91f8-45a1-8e4c-c31331588f21';
 
-//merchant ids
-//
-
-
-//-----Event listeners//
-
-Pebble.addEventListener('appmessage',
-  function(e) {
-    console.log('AppMessage received!');
-  }                     
-);
-
-// Listen for when the watchface is opened
-Pebble.addEventListener('ready', 
-  function(e) {
-    console.log('PebbleKit JS ready!');
-
-    // Get the initial weather
-    getAccountData();
-    getPurchaseData();
-  }
-);
-
-setInterval(intervalFunction,1000);
-function intervalFunction(){
-  getAccountData();
-  getPurchaseData();
-  getOverflowData();
-}
-//--------------------//
-
-//this creates an http request
-//type is GET or POST
-//url is the url with the key
-//callback is idk?
-//xhrRequest = function (url, type, callback)
-/**IMPORTANT**/
-//ACCOUNT id is 56c66be5a73e492741506f2b. MULTIPLE CUSTOMERS CAN MAKE ACCOUNTS BASED OFF OF THIS ID. THIS IS NOT A CUSTOMER ID!@#$@$@#$#@$@#$@#$@#$@$#@$@#$
-
-var xhrRequest = function (url, type, callback) {
-  var xhr = new XMLHttpRequest();
-  xhr.onload = function () {
-    callback(this.responseText);
-  };
-  xhr.open(type, url);
-  xhr.send();
+var url = function() {
+  return 'http://api.reimaginebanking.com/accounts/' + MER_KEY + '/bills?key=' + CAP_KEY;
 };
-//in oreder to create a checking or credit account
-//1. create an customer with post on nessie
-//2. create said account after using customer id
-//3. your done
-//responseText is the result of the query in string(JSON) format
-//convert to json js obj with js
-//depending on the field from the api, use em to get certain information
 
-//globals
-var keys = require('message_keys');
+var getJsonFromCap = function(callback, errcallback){
+  http.get(url(), function(res){
+    var body = '';
 
-// Build a dictionary. if keys invalid is not 0, watch says budget contraints and vibrate also
-var dict = {};
-
-function getAccountData(){
-  
-  //var url = 'http://api.reimaginebanking.com/accounts/580b8d3b360f81f104544ced?key=8718dbc034540cb9f0b1b76d42452753';//this is the main checking account
-  var url = 'http://api.reimaginebanking.com/accounts/580c2363360f81f104544f26?key=8718dbc034540cb9f0b1b76d42452753';//this is the budget checking account
-  
-  xhrRequest(url, 'GET',  function(responseText) {
-    
-    console.log(responseText);
-    var json = JSON.parse(responseText);
-    
-    //dictionary HAS TO MATCH NAMES IN SETTINGS. INCLUDING CAPS AND ORDER
-    //dict[keys.BALANCE] = ((json.balance+''));
-     
-    sendData(keys.BALANCE,'$'+json.balance+'');
-     
-    
+    res.on('data', function(data){
+      body += data;
     });
-   
-}
 
-//this gets the most recent purchase data and adds its description to the stuff
-function getPurchaseData(){
-  
-  //var url = 'http://api.reimaginebanking.com/accounts/580b8d3b360f81f104544ced/purchases?key=8718dbc034540cb9f0b1b76d42452753';//this checks all purchases from the MAIN ACCOUNT checking account
-  var url = 'http://api.reimaginebanking.com/accounts/580c2363360f81f104544f26/purchases?key=8718dbc034540cb9f0b1b76d42452753';//this checks all purchases from the BUDGET ACCOUNT checking account
-  
-  
-  xhrRequest(url, 'GET',  function(responseText) {
-    
-    var json = JSON.parse(responseText);
-    var purchaseLength = json.length;
-    
-    //console.log('Data length:--------------- '+purchaseLength);
-    if(purchaseLength > 0){
-      var fullMerchantData = 'Spent $'+json[purchaseLength-1].amount+'\nOn '+json[purchaseLength-1].description;//info on what was spent
-      //sendData(keys.BALANCE,json.balance+'');
-      dict[keys.FULLMERCHANT] = fullMerchantData;
-      sendData(keys.FULLMERCHANT, fullMerchantData);
-    }
-    //var status =  json[purchaseLength-1].status;
-   
-    
+    res.on('end', function(){
+      var result = JSON.parse(body);
+      callback(result);
+    });
+
+  }).on('error', function(e){
+    errcallback(e);
   });
-    
-   
-}
+};
 
-function getOverflowData(){
-  
-  var overflowURL = 'http://api.reimaginebanking.com/bills/580c3da7360f81f104544f5c?key=8718dbc034540cb9f0b1b76d42452753';
-  
-  xhrRequest(overflowURL, 'GET',  function(responseText) {
-   var json = JSON.parse(responseText);
-    console.log('flow?: '+json.nickname);
-    if(json.nickname == 'OVER'){
-      dict[keys.OVERFLOW] = 1;
-      sendData(keys.OVERFLOW, dict[keys.OVERFLOW]);
-      
-    }
-    else{
-       dict[keys.OVERFLOW] = 0;
-      sendData(keys.OVERFLOW, dict[keys.OVERFLOW]);
-    }
-    
-});
-    
-   
-}
-//sends the data to the pebble watch face
-function sendData(key, data){
-  dict[key] = data;
-  Pebble.sendAppMessage(dict, function() {
-   }, function(e) {
-   console.log('Message failed: ' + JSON.stringify(e));
-  });
-}
+var handleOverflow = function(intent, session, response){
+    getJsonFromCap(function(data){
+        if (data[0].nickname){
+            var cardText = data[0].nickname;
+            if (cardText == "UNDER") {
+                var text = 'You have enough money!';
+            } else if (cardText == "OVER") {
+                var text = 'Overflow! You cannot spend anymore for the day!';
+            } else {
+                var text = 'Cannot access information!';
+            }           
+        } else {
+            var text = 'Information does not exist.';
+            var cardText = text;
+        }
 
+        var heading = text;
+        response.tellWithCard(text, heading, cardText);
+    },
+    function(e){
+        response.tellWithCard('Err', 'Err', 'Err');
+    });
+};
+
+var BillInCheckingAccount = function(){
+  AlexaSkill.call(this, APP_ID);
+};
+
+BillInCheckingAccount.prototype = Object.create(AlexaSkill.prototype);
+BillInCheckingAccount.prototype.constructor = BillInCheckingAccount;
+
+BillInCheckingAccount.prototype.eventHandlers.onSessionStarted = function(sessionStartedRequest, session){
+  // What happens when the session starts? Optional
+  console.log("onSessionStarted requestId: " + sessionStartedRequest.requestId
+      + ", sessionId: " + session.sessionId);
+};
+
+BillInCheckingAccount.prototype.eventHandlers.onLaunch = function(launchRequest, session, response){
+  // This is when they launch the skill but don't specify what they want. Prompt
+  // them for their bus stop
+  var output = 'Welcome to our HopHacks Fall 2016 hack project.';
+
+  var reprompt = 'Do you want to check if you have enough money to make a purchase?';
+
+  response.ask(output, reprompt);
+
+  console.log("onLaunch requestId: " + launchRequest.requestId
+      + ", sessionId: " + session.sessionId);
+};
+
+BillInCheckingAccount.prototype.intentHandlers = {
+  CheckOverflowIntent: function(intent, session, response){
+    handleOverflow(intent, session, response);
+  }
+};
+
+exports.handler = function(event, context) {
+    var skill = new BillInCheckingAccount();
+    skill.execute(event, context);
+};

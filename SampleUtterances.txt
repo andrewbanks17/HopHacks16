@@ -1,0 +1,6 @@
+TotalBudgetIntent the budget
+TotalBudgetIntent how much total money I have
+TotalBudgetIntent how much is in my budget
+TotalBudgetIntent my budget
+TotalBudgetIntent how much money
+HelpBudgetIntent the budget
