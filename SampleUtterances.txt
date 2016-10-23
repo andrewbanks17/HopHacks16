@@ -1,0 +1,9 @@
+CheckOverflowIntent enough money
+CheckOverflowIntent have enough money
+CheckOverflowIntent not have enough money
+CheckOverflowIntent not enough money
+CheckOverflowIntent can make a purchase
+CheckOverflowIntent enough to spend
+CheckOverflowIntent able to spend
+CheckOverflowIntent ability to spend
+CheckOverflowIntent go overflow
