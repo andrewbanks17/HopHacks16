@@ -1,4 +1,2 @@
-# HopHacks16
-This project was supposed to be named budget watch, but it was labeled at hophacks2016 for some reason. I probably was really tired when I named it.
-
-Anyways, This project utilizes capital onces api to manage and interact with your budget. The pebble code works only on cloud pebble due to some global enums.
+# HopHacks16 / Budget watch
+This project incorporates a budgeting system into the pebble watch and Amazon Alexa. For the case of this project, A user had a budget of $3000 a day. If the user spent any more money, the extra money would be automatically deducted from their savings account. In order to do this, I used Capitol One's Nessie api to simulate a real users bank account. The pebble ran a simple program that displayed the current budget remaining by grabbing data from the Api. In order to simulate the purchases of items, I created a mock store in C# with post request that updated the budgets of the current user after an item was bought. We created a custom skills for Amazon echo for this program too.
